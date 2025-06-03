@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import axios from 'axios';
-import toast, { Toaster } from 'react-hot-toast';
+import toast, {Toaster} from 'react-hot-toast';
 import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Avatar, Typography, Box, CircularProgress, IconButton, Dialog, DialogTitle,
@@ -59,7 +59,7 @@ const StudentList = () => {
     };
 
     const handleInputChange = (e) => {
-        const { name, value } = e.target;
+        const {name, value} = e.target;
         setEditFormData(prev => ({
             ...prev,
             [name]: value
@@ -88,44 +88,70 @@ const StudentList = () => {
             setStudents(prevStudents =>
                 prevStudents.map(student =>
                     student._id === selectedStudent._id
-                        ? { ...student, ...editFormData }
+                        ? {...student, ...editFormData}
                         : student
                 )
             );
 
-            toast.success('Student updated successfully!', { id: loadingToast });
+            toast.success('Student updated successfully!', {id: loadingToast});
             handleEditClose();
         } catch (error) {
             console.error('Error updating student:', error);
-            toast.error('Failed to update student', { id: loadingToast });
+            toast.error('Failed to update student', {id: loadingToast});
         } finally {
             setUpdateLoading(false);
         }
     };
 
-    const handleDeleteClick = async (student) => {
-        const confirmed = window.confirm(`Are you sure you want to delete ${student.firstName} ${student.lastName}?`);
+    const handleDeleteClick = (student) => {
+        toast(
+            (t) => (
+                <span>
+        Are you sure you want to delete <b>{student.firstName} {student.lastName}</b>?
+        <div style={{marginTop: 8}}>
+          <button
+              onClick={async () => {
+                  toast.dismiss(t.id);
+                  setDeleteLoading(true);
+                  const loadingToast = toast.loading('Deleting student...');
 
-        if (confirmed) {
-            setDeleteLoading(true);
-            const loadingToast = toast.loading('Deleting student...');
+                  try {
+                      await axios.delete(`https://gurupurnima-be.onrender.com/api/students/${student._id}`);
 
-            try {
-                await axios.delete(`https://gurupurnima-be.onrender.com/api/students/${student._id}`);
+                      // Remove the student from local state
+                      setStudents(prevStudents =>
+                          prevStudents.filter(s => s._id !== student._id)
+                      );
 
-                // Remove the student from local state
-                setStudents(prevStudents =>
-                    prevStudents.filter(s => s._id !== student._id)
-                );
-
-                toast.success('Student deleted successfully!', { id: loadingToast });
-            } catch (error) {
-                console.error('Error deleting student:', error);
-                toast.error('Failed to delete student', { id: loadingToast });
-            } finally {
-                setDeleteLoading(false);
+                      toast.success('Student deleted successfully!', {id: loadingToast});
+                  } catch (error) {
+                      console.error('Error deleting student:', error);
+                      toast.error('Failed to delete student', {id: loadingToast});
+                  } finally {
+                      setDeleteLoading(false);
+                  }
+              }}
+              style={{marginRight: 10, border: '0.5px solid #000', padding: 3, borderRadius: '5px', background: '#fff'}}
+          >
+            Yes
+          </button>
+          <button onClick={() => toast.dismiss(t.id)}
+                  style={{
+                      marginRight: 10,
+                      border: '0.5px solid #000',
+                      padding: 3,
+                      borderRadius: '5px',
+                      background: '#000',
+                      color: 'white'
+                  }}
+          >No</button>
+        </div>
+      </span>
+            ),
+            {
+                duration: 10000,
             }
-        }
+        );
     };
 
     useEffect(() => {
@@ -142,7 +168,7 @@ const StudentList = () => {
                 minHeight="400px"
                 gap={2}
             >
-                <CircularProgress size={60} thickness={4} />
+                <CircularProgress size={60} thickness={4}/>
                 <Typography variant="h6" color="text.secondary">
                     Loading students...
                 </Typography>
@@ -153,7 +179,7 @@ const StudentList = () => {
     return (
         <>
             <Toaster
-                position="top-right"
+                position="top-center"
                 toastOptions={{
                     duration: 3000,
                     style: {
@@ -166,10 +192,10 @@ const StudentList = () => {
                 }}
             />
 
-            <Box sx={{ p: 4, background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh' }}>
-                <Box sx={{ maxWidth: '1400px', margin: '0 auto' }}>
+            <Box sx={{p: 4, background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh'}}>
+                <Box sx={{maxWidth: '1400px', margin: '0 auto'}}>
                     {/* Header */}
-                    <Box sx={{ mb: 4, textAlign: 'center' }}>
+                    <Box sx={{mb: 4, textAlign: 'center'}}>
                         <Typography
                             variant="h3"
                             fontWeight="bold"
@@ -190,7 +216,7 @@ const StudentList = () => {
                             label={`Total Students: ${students.length}`}
                             color="primary"
                             variant="outlined"
-                            sx={{ mt: 2, fontWeight: 'bold' }}
+                            sx={{mt: 2, fontWeight: 'bold'}}
                         />
                     </Box>
 
@@ -254,10 +280,10 @@ const StudentList = () => {
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        <TableCell sx={{ textAlign: 'center', fontWeight: 'medium' }}>
+                                        <TableCell sx={{textAlign: 'center', fontWeight: 'medium'}}>
                                             {student.registerNumber}
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Avatar
                                                 src={student?.photo || ''}
                                                 alt={student.firstName}
@@ -269,15 +295,15 @@ const StudentList = () => {
                                                     boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
                                                 }}
                                             >
-                                                <PersonIcon />
+                                                <PersonIcon/>
                                             </Avatar>
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Typography variant="body1" fontWeight="medium">
                                                 {`${student.firstName} ${student.middleName || ''} ${student.lastName}`.trim()}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Chip
                                                 label={student.whatsappNumber}
                                                 variant="outlined"
@@ -285,32 +311,32 @@ const StudentList = () => {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Chip
                                                 label={student.center}
                                                 color="info"
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center', fontWeight: 'medium' }}>
+                                        <TableCell sx={{textAlign: 'center', fontWeight: 'medium'}}>
                                             {student.age}
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Chip
                                                 label={student.teachersFeeTaken ? 'Yes' : 'No'}
                                                 color={student.teachersFeeTaken ? 'success' : 'default'}
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Chip
                                                 label={student.willTeachersFeeBeTaken ? 'Yes' : 'No'}
                                                 color={student.willTeachersFeeBeTaken ? 'warning' : 'default'}
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ textAlign: 'center' }}>
-                                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                        <TableCell sx={{textAlign: 'center'}}>
+                                            <Box sx={{display: 'flex', gap: 1, justifyContent: 'center'}}>
                                                 <Tooltip title="Edit Student" arrow>
                                                     <IconButton
                                                         color="primary"
@@ -323,7 +349,7 @@ const StudentList = () => {
                                                             }
                                                         }}
                                                     >
-                                                        <EditIcon />
+                                                        <EditIcon/>
                                                     </IconButton>
                                                 </Tooltip>
                                                 <Tooltip title="Delete Student" arrow>
@@ -338,7 +364,7 @@ const StudentList = () => {
                                                             }
                                                         }}
                                                     >
-                                                        <DeleteIcon />
+                                                        <DeleteIcon/>
                                                     </IconButton>
                                                 </Tooltip>
                                             </Box>
@@ -350,7 +376,7 @@ const StudentList = () => {
                     </TableContainer>
 
                     {students.length === 0 && (
-                        <Box sx={{ textAlign: 'center', py: 8 }}>
+                        <Box sx={{textAlign: 'center', py: 8}}>
                             <Typography variant="h6" color="text.secondary">
                                 No students found
                             </Typography>
@@ -393,15 +419,15 @@ const StudentList = () => {
                             right: 8,
                             top: 8,
                             color: 'white',
-                            '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                            '&:hover': {backgroundColor: 'rgba(255,255,255,0.1)'}
                         }}
                     >
-                        <CloseIcon />
+                        <CloseIcon/>
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent sx={{ p: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
+                <DialogContent sx={{p: 4}}>
+                    <Box sx={{display: 'flex', alignItems: 'center', mb: 3, gap: 2}}>
                         <Avatar
                             src={selectedStudent?.photo || ''}
                             alt={selectedStudent?.firstName}
@@ -411,7 +437,7 @@ const StudentList = () => {
                                 border: '3px solid #1976d2'
                             }}
                         >
-                            <PersonIcon />
+                            <PersonIcon/>
                         </Avatar>
                         <Box>
                             <Typography variant="h6" fontWeight="bold">
@@ -423,9 +449,9 @@ const StudentList = () => {
                         </Box>
                     </Box>
 
-                    <Divider sx={{ mb: 3 }} />
+                    <Divider sx={{mb: 3}}/>
 
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
                         <TextField
                             name="firstName"
                             label="First Name"
@@ -484,7 +510,7 @@ const StudentList = () => {
                     </Box>
                 </DialogContent>
 
-                <DialogActions sx={{ p: 3, gap: 2 }}>
+                <DialogActions sx={{p: 3, gap: 2}}>
                     <Button
                         onClick={handleEditClose}
                         variant="outlined"
@@ -515,8 +541,8 @@ const StudentList = () => {
                         }}
                     >
                         {updateLoading ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <CircularProgress size={20} color="inherit" />
+                            <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                                <CircularProgress size={20} color="inherit"/>
                                 Updating...
                             </Box>
                         ) : (
