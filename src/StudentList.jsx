@@ -5,31 +5,53 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Avatar, Typography, Box, CircularProgress, IconButton, Dialog, DialogTitle,
     DialogContent, DialogActions, Button, TextField, Chip, Tooltip,
-    useTheme, alpha, Divider
+    useTheme, alpha, Divider, FormControl, InputLabel, Select, MenuItem,
+    InputAdornment, Grid
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ClearIcon from '@mui/icons-material/Clear';
 
 const StudentList = () => {
     const theme = useTheme();
     const [students, setStudents] = useState([]);
+    const [filteredStudents, setFilteredStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [editFormData, setEditFormData] = useState({
         firstName: '',
         middleName: '',
-        lastName: ''
+        lastName: '',
+        payment: false,
+        amount: '',
+        paymentMode: ''
     });
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // Filter states
+    const [searchTerm, setSearchTerm] = useState('');
+    const [paymentFilter, setPaymentFilter] = useState('all');
+    const [centerFilter, setCenterFilter] = useState('all');
+
+    // Get unique centers for filter dropdown
+    const uniqueCenters = [...new Set(students.map(student => student.center).filter(Boolean))].sort();
+
+    // Calculate total amount
+    const totalAmount = filteredStudents.reduce((sum, student) => {
+        return sum + (student.amount || 0);
+    }, 0);
 
     const fetchStudents = async () => {
         try {
             const response = await axios.get('https://gurupurnima-be.onrender.com/api/students');
             setStudents(response.data);
+            setFilteredStudents(response.data);
         } catch (error) {
             console.error('Error fetching students:', error);
             toast.error('Failed to fetch students');
@@ -38,12 +60,61 @@ const StudentList = () => {
         }
     };
 
+    // Filter function
+    const applyFilters = () => {
+        let filtered = students;
+
+        // Apply search filter
+        if (searchTerm) {
+            filtered = filtered.filter(student => {
+                const fullName = `${student.firstName} ${student.middleName || ''} ${student.lastName}`.toLowerCase();
+                const registerNumber = student.registerNumber?.toString().toLowerCase() || '';
+                const whatsappNumber = student.whatsappNumber?.toString().toLowerCase() || '';
+
+                return fullName.includes(searchTerm.toLowerCase()) ||
+                    registerNumber.includes(searchTerm.toLowerCase()) ||
+                    whatsappNumber.includes(searchTerm.toLowerCase());
+            });
+        }
+
+        // Apply payment filter
+        if (paymentFilter !== 'all') {
+            const isPaymentMade = paymentFilter === 'paid';
+            filtered = filtered.filter(student => {
+                const paymentStatus = student.payment === 'Yes';
+                return paymentStatus === isPaymentMade;
+            });
+        }
+
+        // Apply center filter
+        if (centerFilter !== 'all') {
+            filtered = filtered.filter(student => student.center === centerFilter);
+        }
+
+        setFilteredStudents(filtered);
+    };
+
+    // Apply filters whenever search term, payment filter, center filter, or students change
+    useEffect(() => {
+        applyFilters();
+    }, [searchTerm, paymentFilter, centerFilter, students]);
+
+    // Clear all filters
+    const clearFilters = () => {
+        setSearchTerm('');
+        setPaymentFilter('all');
+        setCenterFilter('all');
+    };
+
     const handleEditClick = (student) => {
         setSelectedStudent(student);
         setEditFormData({
             firstName: student.firstName || '',
             middleName: student.middleName || '',
-            lastName: student.lastName || ''
+            lastName: student.lastName || '',
+            payment: student.payment === 'Yes',
+            amount: student.amount || '',
+            paymentMode: student.paymentMode || ''
         });
         setEditModalOpen(true);
     };
@@ -54,7 +125,10 @@ const StudentList = () => {
         setEditFormData({
             firstName: '',
             middleName: '',
-            lastName: ''
+            lastName: '',
+            payment: false,
+            amount: '',
+            paymentMode: ''
         });
     };
 
@@ -81,23 +155,31 @@ const StudentList = () => {
         try {
             const response = await axios.put(
                 `https://gurupurnima-be.onrender.com/api/students/${selectedStudent._id}`,
-                editFormData
+                {
+                    ...editFormData,
+                    payment: editFormData.payment ? 'Yes' : 'No',
+                    amount: editFormData.amount ? Number(editFormData.amount) : 0 // Convert amount to number
+                }
             );
 
             // Update the student in the local state
             setStudents(prevStudents =>
                 prevStudents.map(student =>
                     student._id === selectedStudent._id
-                        ? {...student, ...editFormData}
+                        ? {
+                            ...student, ...editFormData,
+                            payment: editFormData.payment ? 'Yes' : 'No',
+                            amount: editFormData.amount ? Number(editFormData.amount) : 0 // Convert amount to number
+                        }
                         : student
                 )
             );
 
-            toast.success('Student updated successfully!', {id: loadingToast});
+            toast.success('Student updated successfully!', { id: loadingToast });
             handleEditClose();
         } catch (error) {
             console.error('Error updating student:', error);
-            toast.error('Failed to update student', {id: loadingToast});
+            toast.error('Failed to update student', { id: loadingToast });
         } finally {
             setUpdateLoading(false);
         }
@@ -107,46 +189,52 @@ const StudentList = () => {
         toast(
             (t) => (
                 <span>
-        Are you sure you want to delete <b>{student.firstName} {student.lastName}</b>?
-        <div style={{marginTop: 8}}>
-          <button
-              onClick={async () => {
-                  toast.dismiss(t.id);
-                  setDeleteLoading(true);
-                  const loadingToast = toast.loading('Deleting student...');
+                    Are you sure you want to delete <b>{student.firstName} {student.lastName}</b>?
+                    <div style={{marginTop: 8}}>
+                        <button
+                            onClick={async () => {
+                                toast.dismiss(t.id);
+                                setDeleteLoading(true);
+                                const loadingToast = toast.loading('Deleting student...');
 
-                  try {
-                      await axios.delete(`https://gurupurnima-be.onrender.com/api/students/${student._id}`);
+                                try {
+                                    await axios.delete(`https://gurupurnima-be.onrender.com/api/students/${student._id}`);
 
-                      // Remove the student from local state
-                      setStudents(prevStudents =>
-                          prevStudents.filter(s => s._id !== student._id)
-                      );
+                                    // Remove the student from local state
+                                    setStudents(prevStudents =>
+                                        prevStudents.filter(s => s._id !== student._id)
+                                    );
 
-                      toast.success('Student deleted successfully!', {id: loadingToast});
-                  } catch (error) {
-                      console.error('Error deleting student:', error);
-                      toast.error('Failed to delete student', {id: loadingToast});
-                  } finally {
-                      setDeleteLoading(false);
-                  }
-              }}
-              style={{marginRight: 10, border: '0.5px solid #000', padding: 3, borderRadius: '5px', background: '#fff'}}
-          >
-            Yes
-          </button>
-          <button onClick={() => toast.dismiss(t.id)}
-                  style={{
-                      marginRight: 10,
-                      border: '0.5px solid #000',
-                      padding: 3,
-                      borderRadius: '5px',
-                      background: '#000',
-                      color: 'white'
-                  }}
-          >No</button>
-        </div>
-      </span>
+                                    toast.success('Student deleted successfully!', {id: loadingToast});
+                                } catch (error) {
+                                    console.error('Error deleting student:', error);
+                                    toast.error('Failed to delete student', {id: loadingToast});
+                                } finally {
+                                    setDeleteLoading(false);
+                                }
+                            }}
+                            style={{
+                                marginRight: 10,
+                                border: '0.5px solid #000',
+                                padding: 3,
+                                borderRadius: '5px',
+                                background: '#fff'
+                            }}
+                        >
+                            Yes
+                        </button>
+                        <button onClick={() => toast.dismiss(t.id)}
+                                style={{
+                                    marginRight: 10,
+                                    border: '0.5px solid #000',
+                                    padding: 3,
+                                    borderRadius: '5px',
+                                    background: '#000',
+                                    color: 'white'
+                                }}
+                        >No</button>
+                    </div>
+                </span>
             ),
             {
                 duration: 10000,
@@ -207,28 +295,167 @@ const StudentList = () => {
                                 mb: 1
                             }}
                         >
-                            Sadhak Regetraion Management
+                            Sadhak Registration Management
                         </Typography>
-                            <Typography
-                                variant="h3"
-                                fontWeight="bold"
-                                sx={{
-                                    background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-                                    backgroundClip: 'text',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                    mb: 1
-                                }}
-                            >
+                        <Typography
+                            variant="h3"
+                            fontWeight="bold"
+                            sx={{
+                                background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                backgroundClip: 'text',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                mb: 1
+                            }}
+                        >
                             JBS Technology
                         </Typography>
-                        <Chip
-                            label={`Total Students: ${students.length}`}
-                            color="primary"
-                            variant="outlined"
-                            sx={{mt: 2, fontWeight: 'bold'}}
-                        />
+                        <Box sx={{display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: 2}}>
+                            <Chip
+                                label={`Total Sadhak: ${students.length}`}
+                                color="primary"
+                                variant="outlined"
+                                sx={{fontWeight: 'bold'}}
+                            />
+                            <Chip
+                                label={`Total Amount: ₹${totalAmount.toLocaleString()}`}
+                                color="success"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '1rem'}}
+                            />
+                            <Chip
+                                label={`Paid: ${filteredStudents.filter(s => s.payment === 'Yes').length}`}
+                                color="success"
+                                variant="outlined"
+                                sx={{fontWeight: 'bold'}}
+                            />
+                            <Chip
+                                label={`Unpaid: ${filteredStudents.filter(s => s.payment === 'No').length}`}
+                                color="error"
+                                variant="outlined"
+                                sx={{fontWeight: 'bold'}}
+                            />
+                            <Chip
+                                label={`Centers: ${[...new Set(filteredStudents.map(s => s.center))].length}`}
+                                color="info"
+                                variant="outlined"
+                                sx={{fontWeight: 'bold'}}
+                            />
+                        </Box>
                     </Box>
+
+                    {/* Filter Section */}
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            mb: 3,
+                            p: 3,
+                            borderRadius: '16px',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        <Box sx={{display: 'flex', alignItems: 'center', mb: 2}}>
+                            <FilterListIcon sx={{mr: 1, color: 'primary.main'}}/>
+                            <Typography variant="h6" fontWeight="bold">
+                                Filters
+                            </Typography>
+                        </Box>
+
+                        <Grid container spacing={3} alignItems="center">
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth
+                                    placeholder="Search by name, register number, or WhatsApp number..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon color="action"/>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '12px',
+                                            '&:hover fieldset': {
+                                                borderColor: '#1976d2'
+                                            }
+                                        }
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} md={3}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Payment Status</InputLabel>
+                                    <Select
+                                        value={paymentFilter}
+                                        onChange={(e) => setPaymentFilter(e.target.value)}
+                                        label="Payment Status"
+                                        sx={{
+                                            borderRadius: '12px',
+                                            '& .MuiOutlinedInput-root': {
+                                                '&:hover fieldset': {
+                                                    borderColor: '#1976d2'
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <MenuItem value="all">All Students</MenuItem>
+                                        <MenuItem value="paid">Paid Only</MenuItem>
+                                        <MenuItem value="unpaid">Unpaid Only</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+
+                            <Grid item xs={12} md={3}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Center</InputLabel>
+                                    <Select
+                                        value={centerFilter}
+                                        onChange={(e) => setCenterFilter(e.target.value)}
+                                        label="Center"
+                                        sx={{
+                                            borderRadius: '12px',
+                                            '& .MuiOutlinedInput-root': {
+                                                '&:hover fieldset': {
+                                                    borderColor: '#1976d2'
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <MenuItem value="all">All Centers</MenuItem>
+                                        {uniqueCenters.map((center) => (
+                                            <MenuItem key={center} value={center}>
+                                                {center}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+
+                            <Grid item xs={12} md={2}>
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    onClick={clearFilters}
+                                    startIcon={<ClearIcon/>}
+                                    sx={{
+                                        borderRadius: '12px',
+                                        py: 1.5,
+                                        textTransform: 'none',
+                                        fontWeight: 'bold'
+                                    }}
+                                >
+                                    Clear
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    </Paper>
 
                     {/* Table */}
                     <TableContainer
@@ -253,8 +480,9 @@ const StudentList = () => {
                                         'WhatsApp',
                                         'Center',
                                         'Age',
-                                        'Teacher\'s Fee Taken',
-                                        'Will Fee Be Taken',
+                                        'Payment',
+                                        'Payment Mode',
+                                        'Guru Diksha',
                                         'Actions'
                                     ].map((header) => (
                                         <TableCell
@@ -275,7 +503,7 @@ const StudentList = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {students?.map((student, index) => (
+                                {filteredStudents?.map((student, index) => (
                                     <TableRow
                                         key={student._id}
                                         sx={{
@@ -332,16 +560,52 @@ const StudentList = () => {
                                             {student.age}
                                         </TableCell>
                                         <TableCell sx={{textAlign: 'center'}}>
-                                            <Chip
-                                                label={student.teachersFeeTaken ? 'Yes' : 'No'}
-                                                color={student.teachersFeeTaken ? 'success' : 'default'}
-                                                size="small"
-                                            />
+                                            <Box sx={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                gap: 1
+                                            }}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'inline-block',
+                                                        padding: '6px 12px',
+                                                        borderRadius: '8px',
+                                                        backgroundColor: student.payment === 'Yes' ? '#e8f5e8' : '#ffeaa7',
+                                                        color: student.payment === 'Yes' ? '#2d5016' : '#b7651d',
+                                                        fontWeight: 'bold',
+                                                        minWidth: '80px',
+                                                        textAlign: 'center'
+                                                    }}
+                                                >
+                                                    {student.payment === 'Yes' ? '✓ Paid' : '✗ Unpaid'}
+                                                </Box>
+                                                {student.amount && (
+                                                    <Typography variant="caption"
+                                                                sx={{fontWeight: 'bold', color: '#1976d2'}}>
+                                                        ₹{student.amount}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell sx={{textAlign: 'center'}}>
+                                            {student.paymentMode ? (
+                                                <Chip
+                                                    label={student.paymentMode}
+                                                    color={student.paymentMode === 'Cash' ? 'warning' : 'primary'}
+                                                    size="small"
+                                                    variant="outlined"
+                                                />
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    -
+                                                </Typography>
+                                            )}
                                         </TableCell>
                                         <TableCell sx={{textAlign: 'center'}}>
                                             <Chip
-                                                label={student.willTeachersFeeBeTaken ? 'Yes' : 'No'}
-                                                color={student.willTeachersFeeBeTaken ? 'warning' : 'default'}
+                                                label={student.willTeachersFeeBeTaken === 'Yes' ? 'Yes' : 'No'}
+                                                color={student.willTeachersFeeBeTaken === 'Yes' ? 'warning' : 'default'}
                                                 size="small"
                                             />
                                         </TableCell>
@@ -385,11 +649,24 @@ const StudentList = () => {
                         </Table>
                     </TableContainer>
 
-                    {students.length === 0 && (
+                    {filteredStudents.length === 0 && (
                         <Box sx={{textAlign: 'center', py: 8}}>
                             <Typography variant="h6" color="text.secondary">
-                                No students found
+                                {searchTerm || paymentFilter !== 'all' || centerFilter !== 'all'
+                                    ? 'No students found matching your filters'
+                                    : 'No students found'
+                                }
                             </Typography>
+                            {(searchTerm || paymentFilter !== 'all' || centerFilter !== 'all') && (
+                                <Button
+                                    onClick={clearFilters}
+                                    variant="outlined"
+                                    sx={{mt: 2}}
+                                    startIcon={<ClearIcon/>}
+                                >
+                                    Clear Filters
+                                </Button>
+                            )}
                         </Box>
                     )}
                 </Box>
@@ -420,7 +697,7 @@ const StudentList = () => {
                     }}
                 >
                     <Typography variant="h5" fontWeight="bold">
-                        Edit Student Details
+                        Edit Sadhak Details
                     </Typography>
                     <IconButton
                         onClick={handleEditClose}
@@ -436,8 +713,8 @@ const StudentList = () => {
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent sx={{p: 4}}>
-                    <Box sx={{display: 'flex', alignItems: 'center', mb: 3, gap: 2}}>
+                <DialogContent sx={{ p: 4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
                         <Avatar
                             src={selectedStudent?.photo || ''}
                             alt={selectedStudent?.firstName}
@@ -447,21 +724,21 @@ const StudentList = () => {
                                 border: '3px solid #1976d2'
                             }}
                         >
-                            <PersonIcon/>
+                            <PersonIcon />
                         </Avatar>
                         <Box>
                             <Typography variant="h6" fontWeight="bold">
                                 {selectedStudent?.registerNumber}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Student Registration
+                                Sadhak Registration
                             </Typography>
                         </Box>
                     </Box>
 
-                    <Divider sx={{mb: 3}}/>
+                    <Divider sx={{ mb: 3 }} />
 
-                    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                         <TextField
                             name="firstName"
                             label="First Name"
@@ -517,6 +794,74 @@ const StudentList = () => {
                                 }
                             }}
                         />
+                        <TextField
+                            name="amount"
+                            label="Amount"
+                            type="number"
+                            value={editFormData.amount}
+                            onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                            }}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '12px',
+                                    '&:hover': {
+                                        '& > fieldset': {
+                                            borderColor: '#1976d2'
+                                        }
+                                    }
+                                }
+                            }}
+                        />
+                        <FormControl fullWidth>
+                            <InputLabel>Payment Mode</InputLabel>
+                            <Select
+                                name="paymentMode"
+                                value={editFormData.paymentMode}
+                                onChange={handleInputChange}
+                                label="Payment Mode"
+                                sx={{
+                                    borderRadius: '12px',
+                                    '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                            borderColor: '#1976d2'
+                                        }
+                                    }
+                                }}
+                            >
+                                <MenuItem value="Cash">Cash</MenuItem>
+                                <MenuItem value="Online">Online</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <InputLabel id="payment-edit-label">Payment Status</InputLabel>
+                            <Select
+                                labelId="payment-edit-label"
+                                name="payment"
+                                value={editFormData.payment ? 'Yes' : 'No'}
+                                onChange={(e) =>
+                                    setEditFormData((prev) => ({
+                                        ...prev,
+                                        payment: e.target.value === 'Yes'
+                                    }))
+                                }
+                                label="Payment Status"
+                                sx={{
+                                    borderRadius: '12px',
+                                    '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                            borderColor: '#1976d2'
+                                        }
+                                    }
+                                }}
+                            >
+                                <MenuItem value="Yes">✓ Paid</MenuItem>
+                                <MenuItem value="No">✗ Unpaid</MenuItem>
+                            </Select>
+                        </FormControl>
                     </Box>
                 </DialogContent>
 
