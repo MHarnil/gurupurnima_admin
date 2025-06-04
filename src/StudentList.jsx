@@ -207,10 +207,20 @@ const StudentList = () => {
                                 mb: 1
                             }}
                         >
-                            Student Management
+                            Sadhak Regetraion Management
                         </Typography>
-                        <Typography variant="subtitle1" color="text.secondary">
-                            Manage your students with ease
+                            <Typography
+                                variant="h3"
+                                fontWeight="bold"
+                                sx={{
+                                    background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                    backgroundClip: 'text',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    mb: 1
+                                }}
+                            >
+                            JBS Technology
                         </Typography>
                         <Chip
                             label={`Total Students: ${students.length}`}
