@@ -42,10 +42,24 @@ const StudentList = () => {
     // Get unique centers for filter dropdown
     const uniqueCenters = [...new Set(students.map(student => student.center).filter(Boolean))].sort();
 
-    // Calculate total amount
-    const totalAmount = filteredStudents.reduce((sum, student) => {
-        return sum + (student.amount || 0);
-    }, 0);
+    // Calculate amounts by payment mode
+    const calculateAmounts = () => {
+        const cashAmount = filteredStudents.reduce((sum, student) => {
+            return sum + (student.paymentMode === 'Cash' && student.payment === 'Yes' ? (student.amount || 0) : 0);
+        }, 0);
+
+        const onlineAmount = filteredStudents.reduce((sum, student) => {
+            return sum + (student.paymentMode === 'Online' && student.payment === 'Yes' ? (student.amount || 0) : 0);
+        }, 0);
+
+        const totalAmount = filteredStudents.reduce((sum, student) => {
+            return sum + (student.payment === 'Yes' ? (student.amount || 0) : 0);
+        }, 0);
+
+        return { cashAmount, onlineAmount, totalAmount };
+    };
+
+    const { cashAmount, onlineAmount, totalAmount } = calculateAmounts();
 
     const fetchStudents = async () => {
         try {
@@ -53,8 +67,8 @@ const StudentList = () => {
             setStudents(response.data);
             setFilteredStudents(response.data);
         } catch (error) {
-            console.error('Error fetching students:', error);
-            toast.error('Failed to fetch students');
+            console.error('Error fetching sadhak:', error);
+            toast.error('Failed to fetch sadhak');
         } finally {
             setLoading(false);
         }
@@ -150,7 +164,7 @@ const StudentList = () => {
         }
 
         setUpdateLoading(true);
-        const loadingToast = toast.loading('Updating student...');
+        const loadingToast = toast.loading('Updating sadhak...');
 
         try {
             const response = await axios.put(
@@ -175,11 +189,11 @@ const StudentList = () => {
                 )
             );
 
-            toast.success('Student updated successfully!', { id: loadingToast });
+            toast.success('Sadhak updated successfully!', { id: loadingToast });
             handleEditClose();
         } catch (error) {
-            console.error('Error updating student:', error);
-            toast.error('Failed to update student', { id: loadingToast });
+            console.error('Error updating Sadhak:', error);
+            toast.error('Failed to update Sadhak', { id: loadingToast });
         } finally {
             setUpdateLoading(false);
         }
@@ -258,7 +272,7 @@ const StudentList = () => {
             >
                 <CircularProgress size={60} thickness={4}/>
                 <Typography variant="h6" color="text.secondary">
-                    Loading students...
+                    Loading sadhak...
                 </Typography>
             </Box>
         );
@@ -316,6 +330,18 @@ const StudentList = () => {
                                 color="primary"
                                 variant="outlined"
                                 sx={{fontWeight: 'bold'}}
+                            />
+                            <Chip
+                                label={`Cash Amount: ₹${cashAmount.toLocaleString()}`}
+                                color="warning"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
+                            />
+                            <Chip
+                                label={`Online Amount: ₹${onlineAmount.toLocaleString()}`}
+                                color="info"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
                             />
                             <Chip
                                 label={`Total Amount: ₹${totalAmount.toLocaleString()}`}
@@ -405,7 +431,7 @@ const StudentList = () => {
                                             }
                                         }}
                                     >
-                                        <MenuItem value="all">All Students</MenuItem>
+                                        <MenuItem value="all">All Sadhak</MenuItem>
                                         <MenuItem value="paid">Paid Only</MenuItem>
                                         <MenuItem value="unpaid">Unpaid Only</MenuItem>
                                     </Select>
@@ -611,7 +637,7 @@ const StudentList = () => {
                                         </TableCell>
                                         <TableCell sx={{textAlign: 'center'}}>
                                             <Box sx={{display: 'flex', gap: 1, justifyContent: 'center'}}>
-                                                <Tooltip title="Edit Student" arrow>
+                                                <Tooltip title="Edit Sadhak" arrow>
                                                     <IconButton
                                                         color="primary"
                                                         onClick={() => handleEditClick(student)}
@@ -653,8 +679,8 @@ const StudentList = () => {
                         <Box sx={{textAlign: 'center', py: 8}}>
                             <Typography variant="h6" color="text.secondary">
                                 {searchTerm || paymentFilter !== 'all' || centerFilter !== 'all'
-                                    ? 'No students found matching your filters'
-                                    : 'No students found'
+                                    ? 'No sadhak found matching your filters'
+                                    : 'No sadhak found'
                                 }
                             </Typography>
                             {(searchTerm || paymentFilter !== 'all' || centerFilter !== 'all') && (
