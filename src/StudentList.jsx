@@ -20,7 +20,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import Reciept from "./reciept.jsx";
 
-const StudentList = ({ student }) => {
+const StudentList = ({student}) => {
     const theme = useTheme();
     const [students, setStudents] = useState([]);
     const [filteredStudents, setFilteredStudents] = useState([]);
@@ -31,9 +31,11 @@ const StudentList = ({ student }) => {
         firstName: '',
         middleName: '',
         lastName: '',
+        whatsappNumber: '',
         payment: false,
         amount: '',
-        paymentMode: ''
+        paymentMode: '',
+        donation: ''
     });
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -61,10 +63,18 @@ const StudentList = ({ student }) => {
             return sum + (student.payment === 'Yes' ? (student.amount || 0) : 0);
         }, 0);
 
-        return { cashAmount, onlineAmount, totalAmount };
+        // Add donation calculations
+        const totalDonation = filteredStudents.reduce((sum, student) => {
+            return sum + (student.donation || 0);
+        }, 0);
+
+        // Calculate grand total (Amount + Donation)
+        const grandTotal = totalAmount + totalDonation;
+
+        return {cashAmount, onlineAmount, totalAmount, totalDonation, grandTotal};
     };
 
-    const { cashAmount, onlineAmount, totalAmount } = calculateAmounts();
+    const {cashAmount, onlineAmount, totalAmount, totalDonation, grandTotal} = calculateAmounts();
 
     // Change 1: Update the generateReceiptPDF function
     // Change: Update only the generateReceiptPDF function for auto-sizing
@@ -120,7 +130,7 @@ const StudentList = ({ student }) => {
             const fileName = `Receipt_${student.firstName}_${student.lastName}_${student.registerNumber}.pdf`;
             pdf.save(fileName);
 
-            toast.success('PDF downloaded successfully!', { id: loadingToast });
+            toast.success('PDF downloaded successfully!', {id: loadingToast});
         } catch (error) {
             console.error('Error generating PDF:', error);
             toast.error('Failed to generate PDF');
@@ -191,9 +201,11 @@ const StudentList = ({ student }) => {
             firstName: student.firstName || '',
             middleName: student.middleName || '',
             lastName: student.lastName || '',
+            whatsappNumber: student.whatsappNumber || '',
             payment: student.payment === 'Yes',
             amount: student.amount || '',
-            paymentMode: student.paymentMode || ''
+            paymentMode: student.paymentMode || '',
+            donation: student.donation || ''
         });
         setEditModalOpen(true);
     };
@@ -205,9 +217,11 @@ const StudentList = ({ student }) => {
             firstName: '',
             middleName: '',
             lastName: '',
+            whatsappNumber: '',
             payment: false,
             amount: '',
-            paymentMode: ''
+            paymentMode: '',
+            donation: ''
         });
     };
 
@@ -237,7 +251,8 @@ const StudentList = ({ student }) => {
                 {
                     ...editFormData,
                     payment: editFormData.payment ? 'Yes' : 'No',
-                    amount: editFormData.amount ? Number(editFormData.amount) : 0
+                    amount: editFormData.amount ? Number(editFormData.amount) : 0,
+                    donation: editFormData.donation ? Number(editFormData.donation) : 0  // Add this line
                 }
             );
 
@@ -248,17 +263,18 @@ const StudentList = ({ student }) => {
                         ? {
                             ...student, ...editFormData,
                             payment: editFormData.payment ? 'Yes' : 'No',
-                            amount: editFormData.amount ? Number(editFormData.amount) : 0
+                            amount: editFormData.amount ? Number(editFormData.amount) : 0,
+                            donation: editFormData.donation ? Number(editFormData.donation) : 0  // Add this line
                         }
                         : student
                 )
             );
 
-            toast.success('Sadhak updated successfully!', { id: loadingToast });
+            toast.success('Sadhak updated successfully!', {id: loadingToast});
             handleEditClose();
         } catch (error) {
             console.error('Error updating Sadhak:', error);
-            toast.error('Failed to update Sadhak', { id: loadingToast });
+            toast.error('Failed to update Sadhak', {id: loadingToast});
         } finally {
             setUpdateLoading(false);
         }
@@ -397,24 +413,6 @@ const StudentList = ({ student }) => {
                                 sx={{fontWeight: 'bold'}}
                             />
                             <Chip
-                                label={`Cash Amount: ₹${cashAmount.toLocaleString()}`}
-                                color="warning"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
-                            />
-                            <Chip
-                                label={`Online Amount: ₹${onlineAmount.toLocaleString()}`}
-                                color="info"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
-                            />
-                            <Chip
-                                label={`Total Amount: ₹${totalAmount.toLocaleString()}`}
-                                color="success"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '1rem'}}
-                            />
-                            <Chip
                                 label={`Paid: ${filteredStudents.filter(s => s.payment === 'Yes').length}`}
                                 color="success"
                                 variant="outlined"
@@ -431,6 +429,39 @@ const StudentList = ({ student }) => {
                                 color="info"
                                 variant="outlined"
                                 sx={{fontWeight: 'bold'}}
+                            />
+                        </Box>
+
+                        <Box sx={{display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: 2}}>
+                            <Chip
+                                label={`Cash Amount: ₹${cashAmount.toLocaleString()}`}
+                                color="warning"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
+                            />
+                            <Chip
+                                label={`Online Amount: ₹${onlineAmount.toLocaleString()}`}
+                                color="info"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
+                            />
+                            <Chip
+                                label={`Total Amount: ₹${totalAmount.toLocaleString()}`}
+                                color="success"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
+                            />
+                            <Chip
+                                label={`Total Donation: ₹${totalDonation.toLocaleString()}`}
+                                color="secondary"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
+                            />
+                            <Chip
+                                label={`Grand Total: ₹${grandTotal.toLocaleString()}`}
+                                color="error"
+                                variant="filled"
+                                sx={{fontWeight: 'bold', fontSize: '1.1rem', border: '2px solid #d32f2f'}}
                             />
                         </Box>
                     </Box>
@@ -568,11 +599,12 @@ const StudentList = ({ student }) => {
                                         'Register No.',
                                         'Photo',
                                         'Name',
-                                        'WhatsApp',
+                                        'Number',
                                         'Center',
                                         'Age',
                                         'Payment',
                                         'Payment Mode',
+                                        'Donation',
                                         'Guru Diksha',
                                         'Actions'
                                     ].map((header) => (
@@ -694,6 +726,21 @@ const StudentList = ({ student }) => {
                                             )}
                                         </TableCell>
                                         <TableCell sx={{textAlign: 'center'}}>
+                                            {student.donation ? (
+                                                <Chip
+                                                    label={`₹${student.donation}`}
+                                                    color="secondary"
+                                                    size="small"
+                                                    variant="filled"
+                                                    sx={{fontWeight: 'bold'}}
+                                                />
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    -
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell sx={{textAlign: 'center'}}>
                                             <Chip
                                                 label={student.willTeachersFeeBeTaken === 'Yes' ? 'Yes' : 'No'}
                                                 color={student.willTeachersFeeBeTaken === 'Yes' ? 'warning' : 'default'}
@@ -713,7 +760,7 @@ const StudentList = ({ student }) => {
                                                             },
                                                         }}
                                                     >
-                                                        <DownloadIcon />
+                                                        <DownloadIcon/>
                                                     </IconButton>
                                                 </Tooltip>
                                                 <Tooltip title="Edit Sadhak" arrow>
@@ -818,8 +865,8 @@ const StudentList = ({ student }) => {
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent sx={{ p: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}>
+                <DialogContent sx={{p: 4}}>
+                    <Box sx={{display: 'flex', alignItems: 'center', mb: 3, gap: 2}}>
                         <Avatar
                             src={selectedStudent?.photo || ''}
                             alt={selectedStudent?.firstName}
@@ -829,7 +876,7 @@ const StudentList = ({ student }) => {
                                 border: '3px solid #1976d2'
                             }}
                         >
-                            <PersonIcon />
+                            <PersonIcon/>
                         </Avatar>
                         <Box>
                             <Typography variant="h6" fontWeight="bold">
@@ -841,9 +888,9 @@ const StudentList = ({ student }) => {
                         </Box>
                     </Box>
 
-                    <Divider sx={{ mb: 3 }} />
+                    <Divider sx={{mb: 3}}/>
 
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <Box sx={{display: 'flex', flexDirection: 'column', gap: 3}}>
                         <TextField
                             name="firstName"
                             label="First Name"
@@ -900,10 +947,50 @@ const StudentList = ({ student }) => {
                             }}
                         />
                         <TextField
+                            name="whatsappNumber"
+                            label="Number"
+                            value={editFormData.whatsappNumber}
+                            onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '12px',
+                                    '&:hover': {
+                                        '& > fieldset': {
+                                            borderColor: '#1976d2'
+                                        }
+                                    }
+                                }
+                            }}
+                        />
+                        <TextField
                             name="amount"
                             label="Amount"
                             type="number"
                             value={editFormData.amount}
+                            onChange={handleInputChange}
+                            fullWidth
+                            variant="outlined"
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                            }}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '12px',
+                                    '&:hover': {
+                                        '& > fieldset': {
+                                            borderColor: '#1976d2'
+                                        }
+                                    }
+                                }
+                            }}
+                        />
+                        <TextField
+                            name="donation"
+                            label="Donation"
+                            type="number"
+                            value={editFormData.donation}
                             onChange={handleInputChange}
                             fullWidth
                             variant="outlined"
@@ -1014,8 +1101,8 @@ const StudentList = ({ student }) => {
 
 
             // Change 3: Update the Receipt component reference at the bottom
-            <div ref={receiptRef} style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
-                <Reciept student={selectedStudent} />
+            <div ref={receiptRef} style={{position: 'absolute', top: '-9999px', left: '-9999px'}}>
+                <Reciept student={selectedStudent}/>
             </div>
         </>
     );
