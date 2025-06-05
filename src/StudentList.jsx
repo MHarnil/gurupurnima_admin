@@ -500,7 +500,7 @@ const StudentList = ({student}) => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{
+                                    sx={{ width: '600px' ,
                                         '& .MuiOutlinedInput-root': {
                                             borderRadius: '12px',
                                             '&:hover fieldset': {
@@ -1093,7 +1093,7 @@ const StudentList = ({student}) => {
                                 Updating...
                             </Box>
                         ) : (
-                            'Update Student'
+                            'Update Sadhak'
                         )}
                     </Button>
                 </DialogActions>
