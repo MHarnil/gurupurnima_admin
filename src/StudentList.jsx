@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import axios from 'axios';
 import toast, {Toaster} from 'react-hot-toast';
 import {
@@ -15,8 +15,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
+import DownloadIcon from '@mui/icons-material/Download';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import Reciept from "./reciept.jsx";
 
-const StudentList = () => {
+const StudentList = ({ student }) => {
     const theme = useTheme();
     const [students, setStudents] = useState([]);
     const [filteredStudents, setFilteredStudents] = useState([]);
@@ -33,6 +37,7 @@ const StudentList = () => {
     });
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const receiptRef = useRef();
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +66,66 @@ const StudentList = () => {
 
     const { cashAmount, onlineAmount, totalAmount } = calculateAmounts();
 
+    // Change 1: Update the generateReceiptPDF function
+    // Change: Update only the generateReceiptPDF function for auto-sizing
+    const generateReceiptPDF = async (student) => {
+        try {
+            // Set the selected student for the receipt
+            setSelectedStudent(student);
+
+            // Wait for state update
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const element = receiptRef.current;
+            if (!element) {
+                toast.error('Receipt element not found');
+                return;
+            }
+
+            // Show loading toast
+            const loadingToast = toast.loading('Generating PDF...');
+
+            // Configure html2canvas options for better quality
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#3F6F7D',
+                width: element.scrollWidth,
+                height: element.scrollHeight,
+                scrollX: 0,
+                scrollY: 0
+            });
+
+            const imgData = canvas.toDataURL('image/png', 1.0);
+
+            // Calculate dimensions based on content
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+
+            // Convert pixels to mm (assuming 96 DPI)
+            const mmWidth = (canvasWidth * 25.4) / (96 * 2); // divide by 2 because scale is 2
+            const mmHeight = (canvasHeight * 25.4) / (96 * 2);
+
+            // Create PDF with dynamic size based on content
+            const pdf = new jsPDF({
+                orientation: mmWidth > mmHeight ? 'landscape' : 'portrait',
+                unit: 'mm',
+                format: [mmWidth, mmHeight] // Custom format based on content
+            });
+
+            // Add image to PDF with exact content size
+            pdf.addImage(imgData, 'PNG', 0, 0, mmWidth, mmHeight);
+
+            // Save with student name
+            const fileName = `Receipt_${student.firstName}_${student.lastName}_${student.registerNumber}.pdf`;
+            pdf.save(fileName);
+
+            toast.success('PDF downloaded successfully!', { id: loadingToast });
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Failed to generate PDF');
+        }
+    };
     const fetchStudents = async () => {
         try {
             const response = await axios.get('https://gurupurnima-be.onrender.com/api/students');
@@ -172,7 +237,7 @@ const StudentList = () => {
                 {
                     ...editFormData,
                     payment: editFormData.payment ? 'Yes' : 'No',
-                    amount: editFormData.amount ? Number(editFormData.amount) : 0 // Convert amount to number
+                    amount: editFormData.amount ? Number(editFormData.amount) : 0
                 }
             );
 
@@ -183,7 +248,7 @@ const StudentList = () => {
                         ? {
                             ...student, ...editFormData,
                             payment: editFormData.payment ? 'Yes' : 'No',
-                            amount: editFormData.amount ? Number(editFormData.amount) : 0 // Convert amount to number
+                            amount: editFormData.amount ? Number(editFormData.amount) : 0
                         }
                         : student
                 )
@@ -637,6 +702,20 @@ const StudentList = () => {
                                         </TableCell>
                                         <TableCell sx={{textAlign: 'center'}}>
                                             <Box sx={{display: 'flex', gap: 1, justifyContent: 'center'}}>
+                                                <Tooltip title="Download Receipt PDF" arrow>
+                                                    <IconButton
+                                                        color="success"
+                                                        onClick={() => generateReceiptPDF(student)}
+                                                        sx={{
+                                                            '&:hover': {
+                                                                transform: 'scale(1.1)',
+                                                                backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                                            },
+                                                        }}
+                                                    >
+                                                        <DownloadIcon />
+                                                    </IconButton>
+                                                </Tooltip>
                                                 <Tooltip title="Edit Sadhak" arrow>
                                                     <IconButton
                                                         color="primary"
@@ -932,6 +1011,12 @@ const StudentList = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+
+            // Change 3: Update the Receipt component reference at the bottom
+            <div ref={receiptRef} style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
+                <Reciept student={selectedStudent} />
+            </div>
         </>
     );
 };
