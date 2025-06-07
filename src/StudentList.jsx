@@ -1099,8 +1099,6 @@ const StudentList = ({student}) => {
                 </DialogActions>
             </Dialog>
 
-
-            // Change 3: Update the Receipt component reference at the bottom
             <div ref={receiptRef} style={{position: 'absolute', top: '-9999px', left: '-9999px'}}>
                 <Reciept student={selectedStudent}/>
             </div>
