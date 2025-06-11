@@ -19,6 +19,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import Reciept from "./reciept.jsx";
+import * as XLSX from 'xlsx';
+import GetAppIcon from '@mui/icons-material/GetApp';
 
 const StudentList = ({student}) => {
     const theme = useTheme();
@@ -341,6 +343,97 @@ const StudentList = ({student}) => {
         fetchStudents();
     }, []);
 
+    const exportToExcel = () => {
+        try {
+            // Prepare data for Excel
+            const excelData = filteredStudents.map((student, index) => ({
+                'Sr. No.': index + 1,
+                'Register Number': student.registerNumber || '',
+                'First Name': student.firstName || '',
+                'Middle Name': student.middleName || '',
+                'Last Name': student.lastName || '',
+                'Full Name': `${student.firstName} ${student.middleName || ''} ${student.lastName}`.trim(),
+                'WhatsApp Number': student.whatsappNumber || '',
+                'Center': student.center || '',
+                'Age': student.age || '',
+                'Payment Status': student.payment === 'Yes' ? 'Paid' : 'Unpaid',
+                'Amount (₹)': student.amount || 0,
+                'Payment Mode': student.paymentMode || '',
+                'Donation (₹)': student.donation || 0,
+                'Total (Amount + Donation)': (student.amount || 0) + (student.donation || 0),
+                'Guru Diksha': student.willTeachersFeeBeTaken === 'Yes' ? 'Yes' : 'No',
+                'Created Date': student.createdAt ? new Date(student.createdAt).toLocaleDateString() : '',
+                'Updated Date': student.updatedAt ? new Date(student.updatedAt).toLocaleDateString() : ''
+            }));
+
+            // Add summary row
+            const summaryRow = {
+                'Sr. No.': '',
+                'Register Number': '',
+                'First Name': '',
+                'Middle Name': '',
+                'Last Name': '',
+                'Full Name': '** SUMMARY **',
+                'WhatsApp Number': '',
+                'Center': '',
+                'Age': '',
+                'Payment Status': `Total: ${filteredStudents.length} | Paid: ${filteredStudents.filter(s => s.payment === 'Yes').length} | Unpaid: ${filteredStudents.filter(s => s.payment === 'No').length}`,
+                'Amount (₹)': totalAmount,
+                'Payment Mode': `Cash: ₹${cashAmount} | Online: ₹${onlineAmount}`,
+                'Donation (₹)': totalDonation,
+                'Total (Amount + Donation)': grandTotal,
+                'Guru Diksha': '',
+                'Created Date': '',
+                'Updated Date': ''
+            };
+
+            // Add empty row and summary
+            excelData.push({});
+            excelData.push(summaryRow);
+
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(excelData);
+
+            // Set column widths
+            const colWidths = [
+                {wch: 8},   // Sr. No.
+                {wch: 15},  // Register Number
+                {wch: 15},  // First Name
+                {wch: 15},  // Middle Name
+                {wch: 15},  // Last Name
+                {wch: 25},  // Full Name
+                {wch: 15},  // WhatsApp Number
+                {wch: 20},  // Center
+                {wch: 8},   // Age
+                {wch: 15},  // Payment Status
+                {wch: 12},  // Amount
+                {wch: 15},  // Payment Mode
+                {wch: 12},  // Donation
+                {wch: 15},  // Total
+                {wch: 12},  // Guru Diksha
+                {wch: 15},  // Created Date
+                {wch: 15}   // Updated Date
+            ];
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Sadhak Data');
+
+            // Generate filename with current date
+            const currentDate = new Date().toISOString().split('T')[0];
+            const filename = `Sadhak_Registration_Data_${currentDate}.xlsx`;
+
+            // Save file
+            XLSX.writeFile(wb, filename);
+
+            toast.success('Excel file exported successfully!');
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            toast.error('Failed to export Excel file');
+        }
+    };
+
     if (loading) {
         return (
             <Box
@@ -380,89 +473,163 @@ const StudentList = ({student}) => {
                     {/* Header */}
                     <Box sx={{mb: 4, textAlign: 'center'}}>
                         <Typography
-                            variant="h3"
                             fontWeight="bold"
                             sx={{
+                                fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.8rem', lg: '3rem' },
                                 background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
                                 backgroundClip: 'text',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
-                                mb: 1
+                                mb: 1,
                             }}
                         >
                             Sadhak Registration Management
                         </Typography>
+
                         <Typography
-                            variant="h3"
                             fontWeight="bold"
                             sx={{
+                                fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.8rem', lg: '3rem' },
                                 background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
                                 backgroundClip: 'text',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
-                                mb: 1
+                                mb: 1,
                             }}
                         >
                             JBS Technology
                         </Typography>
-                        <Box sx={{display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: 2}}>
-                            <Chip
-                                label={`Total Sadhak: ${students.length}`}
-                                color="primary"
-                                variant="outlined"
-                                sx={{fontWeight: 'bold'}}
-                            />
-                            <Chip
-                                label={`Paid: ${filteredStudents.filter(s => s.payment === 'Yes').length}`}
-                                color="success"
-                                variant="outlined"
-                                sx={{fontWeight: 'bold'}}
-                            />
-                            <Chip
-                                label={`Unpaid: ${filteredStudents.filter(s => s.payment === 'No').length}`}
-                                color="error"
-                                variant="outlined"
-                                sx={{fontWeight: 'bold'}}
-                            />
-                            <Chip
-                                label={`Centers: ${[...new Set(filteredStudents.map(s => s.center))].length}`}
-                                color="info"
-                                variant="outlined"
-                                sx={{fontWeight: 'bold'}}
-                            />
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                flexWrap: 'wrap',
+                                gap: 2,
+                                mt: 2,
+                                px: { xs: 1, sm: 2, md: 4 },
+                                textAlign: 'center',
+                            }}
+                        >
+                            <Grid container spacing={2} sx={{ mt: 2, px: { xs: 1, sm: 2, md: 4 }, textAlign: 'center' }}>
+                                <Grid item size={{xs:6, sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Total Sadhak: ${students.length}`}
+                                        color="primary"
+                                        variant="outlined"
+                                        sx={{ fontWeight: 'bold', width: '100%' }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:6, sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Paid: ${filteredStudents.filter(s => s.payment === 'Yes').length}`}
+                                        color="success"
+                                        variant="outlined"
+                                        sx={{ fontWeight: 'bold', width: '100%' }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:6, sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Unpaid: ${filteredStudents.filter(s => s.payment === 'No').length}`}
+                                        color="error"
+                                        variant="outlined"
+                                        sx={{ fontWeight: 'bold', width: '100%' }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:6, sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Centers: ${[...new Set(filteredStudents.map(s => s.center))].length}`}
+                                        color="info"
+                                        variant="outlined"
+                                        sx={{ fontWeight: 'bold', width: '100%' }}
+                                    />
+                                </Grid>
+                            </Grid>
+
                         </Box>
 
-                        <Box sx={{display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', mt: 2}}>
-                            <Chip
-                                label={`Cash Amount: ₹${cashAmount.toLocaleString()}`}
-                                color="warning"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
-                            />
-                            <Chip
-                                label={`Online Amount: ₹${onlineAmount.toLocaleString()}`}
-                                color="info"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
-                            />
-                            <Chip
-                                label={`Total Amount: ₹${totalAmount.toLocaleString()}`}
-                                color="success"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
-                            />
-                            <Chip
-                                label={`Total Donation: ₹${totalDonation.toLocaleString()}`}
-                                color="secondary"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '0.9rem'}}
-                            />
-                            <Chip
-                                label={`Grand Total: ₹${grandTotal.toLocaleString()}`}
-                                color="error"
-                                variant="filled"
-                                sx={{fontWeight: 'bold', fontSize: '1.1rem', border: '2px solid #d32f2f'}}
-                            />
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                flexWrap: 'wrap',
+                                gap: 2,
+                                mt: 2,
+                                px: { xs: 1, sm: 2, md: 4 }, // responsive horizontal padding
+                                textAlign: 'center',
+                            }}
+                        >
+                            <Grid container spacing={2} sx={{ mt: 2, px: { xs: 1, sm: 2, md: 4 }, textAlign: 'center' }}>
+                                <Grid item size={{xs:'auto', sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Cash Amount: ₹${cashAmount.toLocaleString()}`}
+                                        color="warning"
+                                        variant="filled"
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            fontSize: '0.9rem',
+                                            width: '100%',
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:'auto', sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Online Amount: ₹${onlineAmount.toLocaleString()}`}
+                                        color="info"
+                                        variant="filled"
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            fontSize: '0.9rem',
+                                            width: '100%',
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:'auto', sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Total Amount: ₹${totalAmount.toLocaleString()}`}
+                                        color="success"
+                                        variant="filled"
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            fontSize: '0.9rem',
+                                            width: '100%',
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:'auto', sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Total Donation: ₹${totalDonation.toLocaleString()}`}
+                                        color="secondary"
+                                        variant="filled"
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            fontSize: '0.9rem',
+                                            width: '100%',
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid item size={{xs:'auto', sm:'auto'}} md="auto">
+                                    <Chip
+                                        label={`Grand Total: ₹${grandTotal.toLocaleString()}`}
+                                        color="error"
+                                        variant="filled"
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            fontSize: '1.1rem',
+                                            border: '2px solid #d32f2f',
+                                            width: '100%',
+                                        }}
+                                    />
+                                </Grid>
+                            </Grid>
                         </Box>
                     </Box>
 
@@ -471,23 +638,23 @@ const StudentList = ({student}) => {
                         elevation={0}
                         sx={{
                             mb: 3,
-                            p: 3,
+                            p: { xs: 2, sm: 3 },
                             borderRadius: '16px',
                             background: 'rgba(255, 255, 255, 0.9)',
                             backdropFilter: 'blur(20px)',
                             border: '1px solid rgba(255, 255, 255, 0.2)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                         }}
                     >
-                        <Box sx={{display: 'flex', alignItems: 'center', mb: 2}}>
-                            <FilterListIcon sx={{mr: 1, color: 'primary.main'}}/>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <FilterListIcon sx={{ mr: 1, color: 'primary.main' }} />
                             <Typography variant="h6" fontWeight="bold">
                                 Filters
                             </Typography>
                         </Box>
 
-                        <Grid container spacing={3} alignItems="center">
-                            <Grid item xs={12} md={4}>
+                        <Grid container spacing={2}>
+                            <Grid item size={{xs:12, sm:6, md:4}} >
                                 <TextField
                                     fullWidth
                                     placeholder="Search by name, register number, or WhatsApp number..."
@@ -496,22 +663,22 @@ const StudentList = ({student}) => {
                                     InputProps={{
                                         startAdornment: (
                                             <InputAdornment position="start">
-                                                <SearchIcon color="action"/>
+                                                <SearchIcon color="action" />
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ width: '600px' ,
+                                    sx={{
                                         '& .MuiOutlinedInput-root': {
                                             borderRadius: '12px',
                                             '&:hover fieldset': {
-                                                borderColor: '#1976d2'
-                                            }
-                                        }
+                                                borderColor: '#1976d2',
+                                            },
+                                        },
                                     }}
                                 />
                             </Grid>
 
-                            <Grid item xs={12} md={3}>
+                            <Grid item size={{xs:12, sm:6, md:3}}>
                                 <FormControl fullWidth>
                                     <InputLabel>Payment Status</InputLabel>
                                     <Select
@@ -522,9 +689,9 @@ const StudentList = ({student}) => {
                                             borderRadius: '12px',
                                             '& .MuiOutlinedInput-root': {
                                                 '&:hover fieldset': {
-                                                    borderColor: '#1976d2'
-                                                }
-                                            }
+                                                    borderColor: '#1976d2',
+                                                },
+                                            },
                                         }}
                                     >
                                         <MenuItem value="all">All Sadhak</MenuItem>
@@ -534,7 +701,7 @@ const StudentList = ({student}) => {
                                 </FormControl>
                             </Grid>
 
-                            <Grid item xs={12} md={3}>
+                            <Grid item size={{xs:12, sm:6, md:3}}>
                                 <FormControl fullWidth>
                                     <InputLabel>Center</InputLabel>
                                     <Select
@@ -545,9 +712,9 @@ const StudentList = ({student}) => {
                                             borderRadius: '12px',
                                             '& .MuiOutlinedInput-root': {
                                                 '&:hover fieldset': {
-                                                    borderColor: '#1976d2'
-                                                }
-                                            }
+                                                    borderColor: '#1976d2',
+                                                },
+                                            },
                                         }}
                                     >
                                         <MenuItem value="all">All Centers</MenuItem>
@@ -560,24 +727,49 @@ const StudentList = ({student}) => {
                                 </FormControl>
                             </Grid>
 
-                            <Grid item xs={12} md={2}>
+                            <Grid item size={{xs:6, sm:6, md:4}}>
                                 <Button
                                     fullWidth
                                     variant="outlined"
                                     onClick={clearFilters}
-                                    startIcon={<ClearIcon/>}
+                                    startIcon={<ClearIcon />}
                                     sx={{
                                         borderRadius: '12px',
-                                        py: 1.5,
+                                        py: 1.2,
                                         textTransform: 'none',
-                                        fontWeight: 'bold'
+                                        fontWeight: 'bold',
+                                        fontSize: '0.85rem',
                                     }}
                                 >
                                     Clear
                                 </Button>
                             </Grid>
+
+                            <Grid item size={{xs:6, sm:6, md:4}}>
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    onClick={exportToExcel}
+                                    startIcon={<GetAppIcon />}
+                                    sx={{
+                                        borderRadius: '12px',
+                                        py: 1.5,
+                                        textTransform: 'none',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.85rem',
+                                        background: 'linear-gradient(135deg, #4caf50, #66bb6a)',
+                                        '&:hover': {
+                                            background: 'linear-gradient(135deg, #388e3c, #4caf50)',
+                                        },
+                                    }}
+                                >
+                                    Export ({filteredStudents.length})
+                                </Button>
+                            </Grid>
                         </Grid>
                     </Paper>
+
+
 
                     {/* Table */}
                     <TableContainer
@@ -585,14 +777,18 @@ const StudentList = ({student}) => {
                         elevation={0}
                         sx={{
                             borderRadius: '16px',
-                            overflow: 'hidden',
+                            overflowX: 'auto',
                             background: 'rgba(255, 255, 255, 0.9)',
                             backdropFilter: 'blur(20px)',
                             border: '1px solid rgba(255, 255, 255, 0.2)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                            mt: 2,
+                            '@media (max-width: 600px)': {
+                                borderRadius: '8px',
+                            },
                         }}
                     >
-                        <Table stickyHeader>
+                        <Table stickyHeader sx={{ minWidth: 1000 ,width: '100%',}}>
                             <TableHead>
                                 <TableRow>
                                     {[
@@ -606,7 +802,7 @@ const StudentList = ({student}) => {
                                         'Payment Mode',
                                         'Donation',
                                         'Guru Diksha',
-                                        'Actions'
+                                        'Actions',
                                     ].map((header) => (
                                         <TableCell
                                             key={header}
@@ -617,7 +813,8 @@ const StudentList = ({student}) => {
                                                 fontSize: '0.95rem',
                                                 textAlign: 'center',
                                                 borderBottom: 'none',
-                                                py: 2
+                                                py: 2,
+                                                whiteSpace: 'nowrap',
                                             }}
                                         >
                                             {header}
@@ -625,26 +822,26 @@ const StudentList = ({student}) => {
                                     ))}
                                 </TableRow>
                             </TableHead>
+
                             <TableBody>
-                                {filteredStudents?.map((student, index) => (
+                                {filteredStudents?.map((student) => (
                                     <TableRow
                                         key={student._id}
                                         sx={{
                                             '&:nth-of-type(odd)': {
-                                                backgroundColor: alpha(theme.palette.primary.main, 0.02)
+                                                backgroundColor: alpha(theme.palette.primary.main, 0.02),
                                             },
                                             '&:hover': {
                                                 backgroundColor: alpha(theme.palette.primary.main, 0.08),
                                                 transform: 'scale(1.001)',
-                                                transition: 'all 0.2s ease-in-out'
+                                                transition: 'all 0.2s ease-in-out',
                                             },
-                                            cursor: 'pointer'
+                                            cursor: 'pointer',
                                         }}
                                     >
-                                        <TableCell sx={{textAlign: 'center', fontWeight: 'medium'}}>
-                                            {student.registerNumber}
-                                        </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
+                                        <TableCell align="center">{student.registerNumber}</TableCell>
+
+                                        <TableCell align="center">
                                             <Avatar
                                                 src={student?.photo || ''}
                                                 alt={student.firstName}
@@ -653,18 +850,20 @@ const StudentList = ({student}) => {
                                                     height: 64,
                                                     margin: '0 auto',
                                                     border: '3px solid #1976d2',
-                                                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                                                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
                                                 }}
                                             >
-                                                <PersonIcon/>
+                                                <PersonIcon />
                                             </Avatar>
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
+
+                                        <TableCell align="center">
                                             <Typography variant="body1" fontWeight="medium">
                                                 {`${student.firstName} ${student.middleName || ''} ${student.lastName}`.trim()}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
+
+                                        <TableCell align="center">
                                             <Chip
                                                 label={student.whatsappNumber}
                                                 variant="outlined"
@@ -672,46 +871,38 @@ const StudentList = ({student}) => {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
-                                            <Chip
-                                                label={student.center}
-                                                color="info"
-                                                size="small"
-                                            />
+
+                                        <TableCell align="center">
+                                            <Chip label={student.center} color="info" size="small" />
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center', fontWeight: 'medium'}}>
-                                            {student.age}
-                                        </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
-                                            <Box sx={{
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                gap: 1
-                                            }}>
+
+                                        <TableCell align="center">{student.age}</TableCell>
+
+                                        <TableCell align="center">
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                                                 <Box
                                                     sx={{
-                                                        display: 'inline-block',
-                                                        padding: '6px 12px',
+                                                        px: 1.5,
+                                                        py: 0.5,
                                                         borderRadius: '8px',
                                                         backgroundColor: student.payment === 'Yes' ? '#e8f5e8' : '#ffeaa7',
                                                         color: student.payment === 'Yes' ? '#2d5016' : '#b7651d',
                                                         fontWeight: 'bold',
                                                         minWidth: '80px',
-                                                        textAlign: 'center'
+                                                        textAlign: 'center',
                                                     }}
                                                 >
                                                     {student.payment === 'Yes' ? '✓ Paid' : '✗ Unpaid'}
                                                 </Box>
                                                 {student.amount && (
-                                                    <Typography variant="caption"
-                                                                sx={{fontWeight: 'bold', color: '#1976d2'}}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
                                                         ₹{student.amount}
                                                     </Typography>
                                                 )}
                                             </Box>
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
+
+                                        <TableCell align="center">
                                             {student.paymentMode ? (
                                                 <Chip
                                                     label={student.paymentMode}
@@ -725,14 +916,15 @@ const StudentList = ({student}) => {
                                                 </Typography>
                                             )}
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
+
+                                        <TableCell align="center">
                                             {student.donation ? (
                                                 <Chip
                                                     label={`₹${student.donation}`}
                                                     color="secondary"
                                                     size="small"
                                                     variant="filled"
-                                                    sx={{fontWeight: 'bold'}}
+                                                    sx={{ fontWeight: 'bold' }}
                                                 />
                                             ) : (
                                                 <Typography variant="body2" color="text.secondary">
@@ -740,15 +932,17 @@ const StudentList = ({student}) => {
                                                 </Typography>
                                             )}
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
+
+                                        <TableCell align="center">
                                             <Chip
                                                 label={student.willTeachersFeeBeTaken === 'Yes' ? 'Yes' : 'No'}
                                                 color={student.willTeachersFeeBeTaken === 'Yes' ? 'warning' : 'default'}
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell sx={{textAlign: 'center'}}>
-                                            <Box sx={{display: 'flex', gap: 1, justifyContent: 'center'}}>
+
+                                        <TableCell align="center">
+                                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                                                 <Tooltip title="Download Receipt PDF" arrow>
                                                     <IconButton
                                                         color="success"
@@ -760,9 +954,10 @@ const StudentList = ({student}) => {
                                                             },
                                                         }}
                                                     >
-                                                        <DownloadIcon/>
+                                                        <DownloadIcon />
                                                     </IconButton>
                                                 </Tooltip>
+
                                                 <Tooltip title="Edit Sadhak" arrow>
                                                     <IconButton
                                                         color="primary"
@@ -771,13 +966,14 @@ const StudentList = ({student}) => {
                                                         sx={{
                                                             '&:hover': {
                                                                 transform: 'scale(1.1)',
-                                                                backgroundColor: alpha(theme.palette.primary.main, 0.1)
-                                                            }
+                                                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                                            },
                                                         }}
                                                     >
-                                                        <EditIcon/>
+                                                        <EditIcon />
                                                     </IconButton>
                                                 </Tooltip>
+
                                                 <Tooltip title="Delete Student" arrow>
                                                     <IconButton
                                                         color="error"
@@ -786,11 +982,11 @@ const StudentList = ({student}) => {
                                                         sx={{
                                                             '&:hover': {
                                                                 transform: 'scale(1.1)',
-                                                                backgroundColor: alpha(theme.palette.error.main, 0.1)
-                                                            }
+                                                                backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                                            },
                                                         }}
                                                     >
-                                                        <DeleteIcon/>
+                                                        <DeleteIcon />
                                                     </IconButton>
                                                 </Tooltip>
                                             </Box>
@@ -801,20 +997,38 @@ const StudentList = ({student}) => {
                         </Table>
                     </TableContainer>
 
+
                     {filteredStudents.length === 0 && (
-                        <Box sx={{textAlign: 'center', py: 8}}>
-                            <Typography variant="h6" color="text.secondary">
+                        <Box
+                            sx={{
+                                textAlign: 'center',
+                                py: 8,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0.8,
+                            }}
+                        >
+                            <Box
+                                component="img"
+                                src="/empty-state.svg" // optional: use your own illustration or remove this line
+                                alt="No results"
+                                sx={{ width: 200, mb: 3, opacity: 0.6 }}
+                            />
+
+                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
                                 {searchTerm || paymentFilter !== 'all' || centerFilter !== 'all'
                                     ? 'No sadhak found matching your filters'
-                                    : 'No sadhak found'
-                                }
+                                    : 'No sadhak found'}
                             </Typography>
+
                             {(searchTerm || paymentFilter !== 'all' || centerFilter !== 'all') && (
                                 <Button
                                     onClick={clearFilters}
                                     variant="outlined"
-                                    sx={{mt: 2}}
-                                    startIcon={<ClearIcon/>}
+                                    sx={{ mt: 3, px: 3, borderRadius: '8px' }}
+                                    startIcon={<ClearIcon />}
                                 >
                                     Clear Filters
                                 </Button>
