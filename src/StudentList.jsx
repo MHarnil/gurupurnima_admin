@@ -355,6 +355,7 @@ const StudentList = ({student}) => {
                 'Full Name': `${student.firstName} ${student.middleName || ''} ${student.lastName}`.trim(),
                 'WhatsApp Number': student.whatsappNumber || '',
                 'Center': student.center || '',
+                'Gender': student.gender || '',
                 'Age': student.age || '',
                 'Payment Status': student.payment === 'Yes' ? 'Paid' : 'Unpaid',
                 'Amount (₹)': student.amount || 0,
@@ -376,6 +377,7 @@ const StudentList = ({student}) => {
                 'Full Name': '** SUMMARY **',
                 'WhatsApp Number': '',
                 'Center': '',
+                'Gender': '',
                 'Age': '',
                 'Payment Status': `Total: ${filteredStudents.length} | Paid: ${filteredStudents.filter(s => s.payment === 'Yes').length} | Unpaid: ${filteredStudents.filter(s => s.payment === 'No').length}`,
                 'Amount (₹)': totalAmount,
@@ -797,6 +799,7 @@ const StudentList = ({student}) => {
                                         'Name',
                                         'Number',
                                         'Center',
+                                        'Gender',
                                         'Age',
                                         'Payment',
                                         'Payment Mode',
@@ -875,6 +878,8 @@ const StudentList = ({student}) => {
                                         <TableCell align="center">
                                             <Chip label={student.center} color="info" size="small" />
                                         </TableCell>
+
+                                        <TableCell align="center">{student.gender}</TableCell>
 
                                         <TableCell align="center">{student.age}</TableCell>
 
